@@ -130,17 +130,18 @@ pub(crate) async fn read_json_schema_single(
         ),
     };
     // If file is compressed, wrap stream in decoding stream.
-    let reader: Box<dyn AsyncBufRead + Unpin + Send> = match CompressionCodec::from_uri(uri) {
+    let mut reader: Box<dyn AsyncBufRead + Unpin + Send> = match CompressionCodec::from_uri(uri) {
         Some(compression) => Box::new(tokio::io::BufReader::new(compression.to_decoder(reader))),
         None => reader,
     };
-    let arrow_schema = infer_schema(reader, None, max_bytes).await?;
+    let arrow_schema = infer_schema(&mut reader, None, max_bytes).await?;
     let schema = Schema::try_from(&arrow_schema)?;
     Ok(schema)
 }
 
-async fn infer_schema<R>(
-    reader: R,
+
+pub(crate) async fn infer_schema<R>(
+    reader: &mut R,
     max_rows: Option<usize>,
     max_bytes: Option<usize>,
 ) -> DaftResult<arrow2::datatypes::Schema>

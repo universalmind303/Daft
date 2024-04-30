@@ -3,7 +3,7 @@ use std::{collections::HashMap, num::NonZeroUsize, sync::Arc};
 use common_error::{DaftError, DaftResult};
 use daft_core::{schema::Schema, utils::arrow::cast_array_for_daft_if_needed, Series};
 use daft_dsl::optimization::get_required_columns;
-use daft_io::{get_runtime, GetResult, IOClient, IOStatsRef};
+use daft_io::{get_runtime, parse_url, GetResult, IOClient, IOStatsRef, SourceType};
 use daft_table::Table;
 use futures::{Stream, StreamExt, TryStreamExt};
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
@@ -18,7 +18,7 @@ use tokio::{
 };
 use tokio_util::io::StreamReader;
 
-use crate::{decoding::deserialize_records, ArrowSnafu, ChunkSnafu};
+use crate::{decoding::deserialize_records, schema::infer_schema, ArrowSnafu, ChunkSnafu};
 use crate::{
     schema::read_json_schema_single, JsonConvertOptions, JsonParseOptions, JsonReadOptions,
 };
@@ -52,6 +52,7 @@ pub fn read_json(
 ) -> DaftResult<Table> {
     let runtime_handle = get_runtime(multithreaded_io)?;
     let _rt_guard = runtime_handle.enter();
+
     runtime_handle.block_on(async {
         read_json_single_into_table(
             uri,
@@ -80,6 +81,7 @@ pub fn read_json_bulk(
 ) -> DaftResult<Vec<Table>> {
     let runtime_handle = get_runtime(multithreaded_io)?;
     let _rt_guard = runtime_handle.enter();
+
     let tables = runtime_handle.block_on(async move {
         // Launch a read task per URI, throttling the number of concurrent file reads to num_parallel tasks.
         let task_stream = futures::stream::iter(uris.iter().map(|uri| {
@@ -93,7 +95,7 @@ pub fn read_json_bulk(
             );
             tokio::task::spawn(async move {
                 let table = read_json_single_into_table(
-                    uri.as_str(),
+                    &uri,
                     convert_options,
                     parse_options,
                     read_options,
@@ -102,6 +104,7 @@ pub fn read_json_bulk(
                     max_chunks_in_flight,
                 )
                 .await?;
+
                 DaftResult::Ok(table)
             })
             .context(crate::JoinSnafu)
@@ -176,6 +179,69 @@ fn assert_stream_send<'u, R>(
 ) -> impl 'u + Send + Stream<Item = R> {
     s
 }
+async fn local_read_json_single_into_stream(
+    uri: &str,
+    convert_options: JsonConvertOptions,
+    _: JsonParseOptions,
+    read_options: Option<JsonReadOptions>,
+) -> DaftResult<(impl TableChunkStream + Send, arrow2::datatypes::Schema)> {
+    // Remove the file:// prefix if it exists
+    let uri = uri.trim_start_matches("file://");
+
+    let buffer_size = read_options
+        .as_ref()
+        .and_then(|opt| {
+            opt.buffer_size
+                .or_else(|| opt.chunk_size.map(|cs| (64 * cs).min(256 * 1024 * 1024)))
+        })
+        .unwrap_or(256 * 1024);
+
+    let chunk_size = read_options
+        .as_ref()
+        .and_then(|opt| {
+            opt.chunk_size
+                .or_else(|| opt.buffer_size.map(|bs| (bs / 64).max(16)))
+        })
+        .unwrap_or(64);
+
+    let file = File::open(uri).await?;
+
+    let reader: Box<dyn AsyncBufRead + Unpin + Send> =
+        Box::new(BufReader::with_capacity(buffer_size, file));
+
+    let mut reader: Box<dyn AsyncBufRead + Unpin + Send> = match CompressionCodec::from_uri(uri) {
+        Some(compression) => Box::new(tokio::io::BufReader::new(compression.to_decoder(reader))),
+        None => reader,
+    };
+
+    let schema = infer_schema(&mut reader, None, Some(1024 * 1024)).await?;
+
+    let read_stream = read_into_line_chunk_stream(reader, convert_options.limit, chunk_size);
+    let (projected_schema, schema_is_projection) = match convert_options.include_columns {
+        Some(projection) => {
+            let mut field_map = schema
+                .fields
+                .into_iter()
+                .map(|f| (f.name.clone(), f))
+                .collect::<HashMap<_, _>>();
+            let projected_fields = projection.into_iter().map(|col| field_map.remove(col.as_str()).ok_or(DaftError::ValueError(format!("Column {} in the projection doesn't exist in the JSON file; existing columns = {:?}", col, field_map.keys())))).collect::<DaftResult<Vec<_>>>()?;
+            (
+                arrow2::datatypes::Schema::from(projected_fields)
+                    .with_metadata(schema.metadata.clone()),
+                true,
+            )
+        }
+        None => (schema, false),
+    };
+    Ok((
+        parse_into_column_array_chunk_stream(
+            read_stream,
+            projected_schema.clone().into(),
+            schema_is_projection,
+        )?,
+        projected_schema,
+    ))
+}
 
 async fn read_json_single_into_table(
     uri: &str,
@@ -211,16 +277,6 @@ async fn read_json_single_into_table(
             Some(co)
         }
     };
-
-    let (table_stream, schema) = read_json_single_into_stream(
-        uri,
-        convert_options_with_predicate_columns.unwrap_or_default(),
-        parse_options.unwrap_or_default(),
-        read_options,
-        io_client,
-        io_stats,
-    )
-    .await?;
     // Default max chunks in flight is set to 2x the number of cores, which should ensure pipelining of reading chunks
     // with the parsing of chunks on the rayon threadpool.
     let max_chunks_in_flight = max_chunks_in_flight.unwrap_or_else(|| {
@@ -231,6 +287,58 @@ async fn read_json_single_into_table(
             .try_into()
             .unwrap()
     });
+
+    let (source_type, _) = parse_url(&uri)?;
+    if matches!(source_type, SourceType::File) {
+        let (table_stream, schema) = local_read_json_single_into_stream(
+            uri,
+            convert_options_with_predicate_columns.unwrap_or_default(),
+            parse_options.unwrap_or_default(),
+            read_options,
+        )
+        .await?;
+        collect_stream(
+            table_stream,
+            max_chunks_in_flight,
+            predicate,
+            include_columns,
+            limit,
+            schema,
+        )
+        .await
+    } else {
+        let (table_stream, schema) = read_json_single_into_stream(
+            uri,
+            convert_options_with_predicate_columns.unwrap_or_default(),
+            parse_options.unwrap_or_default(),
+            read_options,
+            io_client,
+            io_stats,
+        )
+        .await?;
+        collect_stream(
+            table_stream,
+            max_chunks_in_flight,
+            predicate,
+            include_columns,
+            limit,
+            schema,
+        )
+        .await
+    }
+}
+
+async fn collect_stream<T>(
+    table_stream: T,
+    max_chunks_in_flight: usize,
+    predicate: Option<Arc<daft_dsl::Expr>>,
+    include_columns: Option<Vec<String>>,
+    limit: Option<usize>,
+    schema: arrow2::datatypes::Schema,
+) -> Result<Table, DaftError>
+where
+    T: TableChunkStream + Send,
+{
     let tables = table_stream
         // Limit the number of chunks we have in flight at any given time.
         .try_buffered(max_chunks_in_flight);
