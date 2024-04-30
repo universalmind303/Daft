@@ -139,7 +139,6 @@ pub(crate) async fn read_json_schema_single(
     Ok(schema)
 }
 
-
 pub(crate) async fn infer_schema<R>(
     reader: &mut R,
     max_rows: Option<usize>,
