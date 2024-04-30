@@ -8,7 +8,7 @@ use crate::{
     },
     DataType, Series,
 };
-use arrow2::{self, array::Array};
+use arrow2::array::Array;
 
 use common_error::{DaftError, DaftResult};
 use itertools::Itertools;
@@ -340,7 +340,7 @@ impl Utf8Array {
 
         let self_arrow = self.as_arrow();
         let buffer_len = self_arrow.values().len();
-        // This will overallocate by pattern_len * N_i, where N_i is the number of pattern occurences in the ith string in arr_iter.
+        // This will overallocate by pattern_len * N_i, where N_i is the number of pattern occurrences in the ith string in arr_iter.
         let mut splits = arrow2::array::MutableUtf8Array::with_capacity(buffer_len);
         let mut offsets = arrow2::offset::Offsets::new();
         let mut validity = arrow2::bitmap::MutableBitmap::with_capacity(self.len());

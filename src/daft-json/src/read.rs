@@ -284,8 +284,7 @@ async fn read_json_single_into_table(
             .unwrap_or(NonZeroUsize::new(2).unwrap())
             .checked_mul(2.try_into().unwrap())
             .unwrap()
-            .try_into()
-            .unwrap()
+            .into()
     });
 
     let (source_type, _) = parse_url(&uri)?;
@@ -382,8 +381,10 @@ where
     }
     // // TODO(Clark): Don't concatenate all chunks from a file into a single table, since MicroPartition is natively chunked.
     let concated_table = tables_concat(collected_tables)?;
-    if let Some(limit) = limit && concated_table.len() > limit {
-        // apply head incase that last chunk went over limit
+    if let Some(limit) = limit
+        && concated_table.len() > limit
+    {
+        // apply head in case that last chunk went over limit
         concated_table.head(limit)
     } else {
         Ok(concated_table)
@@ -1127,7 +1128,7 @@ mod tests {
             Schema::new(vec![
                 Field::new("sepalLength", DataType::Float64),
                 Field::new("sepalWidth", DataType::Float64),
-                // All null column should have hte provided dtype.
+                // All null column should have the provided dtype.
                 Field::new("petalLength", DataType::Float64),
                 Field::new("petalWidth", DataType::Float64),
                 Field::new("species", DataType::Utf8),
