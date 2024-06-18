@@ -58,9 +58,9 @@ def read_lance(url: str, io_config: Optional["IOConfig"] = None) -> DataFrame:
     storage_options = io_config_to_storage_options(io_config, url)
 
     ds = lance.dataset(url, storage_options=storage_options)
-    iceberg_operator = LanceDBScanOperator(ds)
+    lance_operator = LanceDBScanOperator(ds)
 
-    handle = ScanOperatorHandle.from_python_scan_operator(iceberg_operator)
+    handle = ScanOperatorHandle.from_python_scan_operator(lance_operator)
     builder = LogicalPlanBuilder.from_tabular_scan(scan_operator=handle)
     return DataFrame(builder)
 
