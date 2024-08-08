@@ -1617,6 +1617,7 @@ dependencies = [
  "chrono-tz",
  "comfy-table 7.1.1",
  "common-daft-config",
+ "common-display",
  "common-error",
  "daft-minhash",
  "daft-sketch",
@@ -1928,6 +1929,7 @@ name = "daft-scan"
 version = "0.2.0-dev0"
 dependencies = [
  "common-daft-config",
+ "common-display",
  "common-error",
  "common-io-config",
  "common-py-serde",

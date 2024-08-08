@@ -6,6 +6,7 @@ use std::{
     sync::Arc,
 };
 
+use common_display::{DisplayFormatType, Displayable, Part};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
@@ -295,6 +296,15 @@ impl Display for Schema {
                 .as_slice(),
         );
         writeln!(f, "{table}")
+    }
+}
+
+impl Displayable for Schema {
+    fn fmt_self(&self, t: DisplayFormatType, f: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        f.write_str(&self.short_string())
+    }
+    fn parts(&self, t: DisplayFormatType) -> Vec<Part> {
+        vec![]
     }
 }
 

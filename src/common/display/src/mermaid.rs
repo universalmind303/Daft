@@ -4,7 +4,7 @@ use common_error::DaftResult;
 use common_treenode::{TreeNode, TreeNodeRecursion, TreeNodeVisitor};
 use indexmap::IndexMap;
 
-use crate::tree::TreeDisplay;
+use crate::{DisplayFormatType, Displayable};
 
 pub trait MermaidDisplay {
     fn repr_mermaid(&self, options: MermaidDisplayOptions) -> String;
@@ -43,10 +43,11 @@ struct MermaidDisplayVisitor<T> {
     node_count: usize,
     output: Vec<String>,
     options: MermaidDisplayOptions,
+    t: DisplayFormatType,
 }
 
 impl<T> MermaidDisplayVisitor<T> {
-    pub fn new(options: MermaidDisplayOptions) -> MermaidDisplayVisitor<T> {
+    pub fn new(options: MermaidDisplayOptions, t: DisplayFormatType) -> MermaidDisplayVisitor<T> {
         let mut output = Vec::new();
         // if it's not a subgraph, we render the entire thing: `flowchart TD`
         // otherwise we just build out the subgraph componenend `subgraph <subgraph_id>["<name>"]`
@@ -65,6 +66,7 @@ impl<T> MermaidDisplayVisitor<T> {
             node_count: 0,
             output,
             options,
+            t,
         }
     }
 
@@ -88,11 +90,13 @@ impl<T> MermaidDisplayVisitor<T> {
 
 impl<T> MermaidDisplayVisitor<T>
 where
-    T: TreeDisplay,
+    T: Displayable,
 {
     fn add_node(&mut self, node: &T) {
-        let name = node.get_name();
+        let name = node.to_string(self.t);
+        println!("adding node: '{name}'");
         let display = self.display_for_node(node);
+        println!("display: '{display}'");
         let node_id = self.node_count;
         self.node_count += 1;
 
@@ -100,6 +104,7 @@ where
             Some(SubgraphOptions { subgraph_id, .. }) => format!("{subgraph_id}{name}{node_id}"),
             None => format!("{name}{node_id}"),
         };
+        println!("adding node id: '{id}'");
 
         self.nodes.insert(display.clone(), id.clone());
 
@@ -110,11 +115,10 @@ where
         }
     }
 
-    fn display_for_node(&self, node: &T) -> String {
+    fn display_for_node<D: Displayable>(&self, node: &D) -> String {
         // Ideally, a node should be able to uniquely identify itself.
         // For now, we'll just use the disaplay string.
-
-        let lines = node.get_multiline_representation();
+        let lines = node.to_multiline_display(self.t).unwrap();
         let mut display: Vec<String> = Vec::with_capacity(lines.len());
         let max_chars = 80;
 
@@ -129,8 +133,9 @@ where
     }
 
     // Get the id of a node that has already been added.
-    fn get_node_id(&self, node: &T) -> String {
+    fn get_node_id<D: Displayable>(&self, node: &D) -> String {
         let display = self.display_for_node(node);
+        println!("getting node id for display: '{display}'");
         // SAFETY: Since this is only called after all nodes have been added, we can safely unwrap.
         self.nodes.get(&display).cloned().unwrap()
     }
@@ -142,7 +147,7 @@ where
 
 impl<T> TreeNodeVisitor for MermaidDisplayVisitor<T>
 where
-    T: TreeDisplay,
+    T: Displayable,
     Arc<T>: TreeNode,
 {
     type Node = Arc<T>;
@@ -159,10 +164,11 @@ where
         // We want to do this from bottom to top so that the ordering of the mermaid chart is correct.
         let node_id = self.get_node_id(node);
 
-        let children = node.get_children();
+        let children = node.parts(self.t);
         if children.is_empty() {
             return Ok(TreeNodeRecursion::Continue);
         }
+
         for child in children {
             let child_id = self.get_node_id(&child);
             self.add_edge(node_id.clone(), child_id);
@@ -174,11 +180,11 @@ where
 
 impl<T> MermaidDisplay for Arc<T>
 where
-    T: TreeDisplay,
+    T: Displayable,
     Arc<T>: TreeNode,
 {
     fn repr_mermaid(&self, options: MermaidDisplayOptions) -> String {
-        let mut visitor = MermaidDisplayVisitor::new(options);
+        let mut visitor = MermaidDisplayVisitor::new(options, DisplayFormatType::Compact);
         let _ = self.visit(&mut visitor);
         visitor.build()
     }

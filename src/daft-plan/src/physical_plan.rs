@@ -1,4 +1,4 @@
-use common_display::{tree::TreeDisplay, DisplayFormat};
+use common_display::{tree::TreeDisplay, DisplayFormat, DisplayFormatType, Displayable};
 use serde::{Deserialize, Serialize};
 use std::{cmp::max, ops::Add, sync::Arc};
 
@@ -617,5 +617,15 @@ impl PhysicalPlan {
             DisplayFormat::Ascii { simple } => self.repr_ascii(simple),
             DisplayFormat::Mermaid(opts) => self.repr_mermaid(opts),
         }
+    }
+}
+
+impl Displayable for PhysicalPlan {
+    fn fmt_self(&self, t: DisplayFormatType, f: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        Ok(())
+    }
+
+    fn parts<'a>(&'a self, _t: DisplayFormatType) -> Vec<common_display::Part<'a>> {
+        todo!("Implement parts for PhysicalPlan")
     }
 }

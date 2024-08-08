@@ -1,5 +1,6 @@
 use std::hash::Hash;
 
+use common_display::{DisplayFormatType, Displayable};
 use common_io_config::IOConfig;
 use daft_dsl::ExprRef;
 use itertools::Itertools;

@@ -7,6 +7,7 @@ use std::{
     sync::Arc,
 };
 
+use common_display::Displayable;
 use common_error::{DaftError, DaftResult};
 use daft_core::{
     datatypes::Field,
@@ -562,6 +563,38 @@ impl ScanTask {
             res.push(format!("Statistics = {}", statistics));
         }
         res
+    }
+}
+
+impl Displayable for ScanTask {
+    fn fmt_self(
+        &self,
+        _t: common_display::DisplayFormatType,
+        f: &mut dyn std::fmt::Write,
+    ) -> std::fmt::Result {
+        f.write_str("ScanTask")
+    }
+
+    fn parts(&self, t: common_display::DisplayFormatType) -> Vec<common_display::Part> {
+        use common_display::Part;
+
+        let mut parts = vec![];
+        parts.push(Part::borrowed("schema", &self.schema));
+        parts.push(Part::owned(
+            "size_bytes_on_disk",
+            self.size_bytes_on_disk.unwrap_or(0),
+        ));
+
+        if !matches!(t, common_display::DisplayFormatType::Compact) {
+            // parts.push(Part::borrowed("sources", &self.sources));
+            // parts.push(Part::borrowed("file_format_config", &self.file_format_config));
+            // parts.push(Part::borrowed("storage_config", &self.storage_config));
+            // parts.push(Part::borrowed("pushdowns", &self.pushdowns));
+            // parts.push(Part::borrowed("size_bytes_on_disk", &self.size_bytes_on_disk));
+            // parts.push(Part::borrowed("metadata", &self.metadata));
+            // parts.push(Part::borrowed("statistics", &self.statistics));
+        }
+        parts
     }
 }
 

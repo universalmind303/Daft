@@ -3,8 +3,27 @@ use std::{
     sync::Arc,
 };
 
-use common_display::tree::TreeDisplay;
+use common_display::{tree::TreeDisplay, Displayable};
+impl Displayable for crate::LogicalPlan {
+    fn fmt_self(
+        &self,
+        t: common_display::DisplayFormatType,
+        f: &mut dyn fmt::Write,
+    ) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
 
+    fn parts(&self, t: common_display::DisplayFormatType) -> Vec<common_display::Part> {
+        let children = self.children();
+        children
+            .into_iter()
+            .map(|child| child.into_part())
+            .collect()
+    }
+    fn to_multiline_display(&self, t: common_display::DisplayFormatType) -> Result<Vec<String>, fmt::Error> {
+        return Ok(self.multiline_display());
+    }
+}
 impl TreeDisplay for crate::LogicalPlan {
     fn get_multiline_representation(&self) -> Vec<String> {
         self.multiline_display()
@@ -51,7 +70,10 @@ impl Display for crate::physical_plan::PhysicalPlan {
 
 #[cfg(test)]
 mod test {
-    use common_display::mermaid::{MermaidDisplay, MermaidDisplayOptions, SubgraphOptions};
+    use common_display::{
+        mermaid::{MermaidDisplay, MermaidDisplayOptions, SubgraphOptions},
+        DisplayFormatType,
+    };
 
     use std::sync::Arc;
 
@@ -109,8 +131,47 @@ mod test {
     }
 
     #[test]
+    fn test_tree_display_new() -> DaftResult<()> {
+        let subplan = LogicalPlanBuilder::new(plan_1())
+            .filter(col("id").eq(lit(1)))?
+            .build();
+
+        let subplan2 = LogicalPlanBuilder::new(plan_2())
+            .filter(
+                startswith(col("last_name"), lit("S")).and(endswith(col("last_name"), lit("n"))),
+            )?
+            .limit(1000, false)?
+            .add_monotonically_increasing_id(None)?
+            .distinct()?
+            .sort(vec![col("last_name")], vec![false])?
+            .build();
+
+        let plan = LogicalPlanBuilder::new(subplan)
+            .join(
+                subplan2,
+                vec![col("id")],
+                vec![col("id")],
+                daft_core::JoinType::Inner,
+                None,
+            )?
+            .filter(col("first_name").eq(lit("hello")))?
+            .select(vec![col("first_name")])?
+            .limit(10, false)?
+            .build();
+        let mut s = String::new();
+        let mut visitor =
+            common_display::tree::TreeDisplayVisitor::new(&mut s, DisplayFormatType::Verbose);
+        visitor.fmt_tree(&plan)?;
+        println!("text = \n{}", s);
+        println!("\n\n--------------\n\n");
+        println!("{}", plan.repr_ascii(false));
+
+        Ok(())
+    }
+
+    #[test]
     // create a random, complex plan and check if it can be displayed as expected
-    fn test_mermaid_display() -> DaftResult<()> {
+    fn test_mermaid_display_1() -> DaftResult<()> {
         let subplan = LogicalPlanBuilder::new(plan_1())
             .filter(col("id").eq(lit(1)))?
             .build();

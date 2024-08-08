@@ -1,3 +1,4 @@
+use common_display::{DisplayFormatType, Displayable, Part};
 use daft_scan::{file_format::FileFormatConfig, ScanTask};
 use std::sync::Arc;
 
@@ -22,31 +23,80 @@ impl TabularScan {
     }
 
     pub fn multiline_display(&self) -> Vec<String> {
-        let mut res = vec![];
-        res.push("TabularScan:".to_string());
+        self.to_multiline_display(DisplayFormatType::Verbose)
+            .unwrap()
+        // let mut res = vec![];
+        // res.push("TabularScan:".to_string());
+        // let num_scan_tasks = self.scan_tasks.len();
+        // let total_bytes: usize = self
+        //     .scan_tasks
+        //     .iter()
+        //     .map(|st| st.size_bytes().unwrap_or(0))
+        //     .sum();
+
+        // res.push(format!("Num Scan Tasks = {num_scan_tasks}",));
+        // res.push(format!("Estimated Scan Bytes = {total_bytes}",));
+
+        // #[cfg(feature = "python")]
+        // if let FileFormatConfig::Database(config) = self.scan_tasks[0].file_format_config.as_ref() {
+        //     if num_scan_tasks == 1 {
+        //         res.push(format!("SQL Query = {}", config.sql));
+        //     } else {
+        //         res.push(format!("SQL Queries = [{},..]", config.sql));
+        //     }
+        // }
+
+        // res.push(format!(
+        //     "Clustering spec = {{ {} }}",
+        //     self.clustering_spec.multiline_display().join(", ")
+        // ));
+        // res
+    }
+}
+
+impl Displayable for TabularScan {
+    fn fmt_self(&self, _t: DisplayFormatType, f: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        f.write_str("TabularScan")
+    }
+
+    fn parts(&self, t: DisplayFormatType) -> Vec<Part> {
+        let mut parts = vec![];
         let num_scan_tasks = self.scan_tasks.len();
+        parts.push(Part::owned("Num Scan Tasks", num_scan_tasks));
+
         let total_bytes: usize = self
             .scan_tasks
             .iter()
             .map(|st| st.size_bytes().unwrap_or(0))
             .sum();
-
-        res.push(format!("Num Scan Tasks = {num_scan_tasks}",));
-        res.push(format!("Estimated Scan Bytes = {total_bytes}",));
+        parts.push(Part::owned("Estimated Scan Bytes", total_bytes));
 
         #[cfg(feature = "python")]
         if let FileFormatConfig::Database(config) = self.scan_tasks[0].file_format_config.as_ref() {
             if num_scan_tasks == 1 {
-                res.push(format!("SQL Query = {}", config.sql));
+                parts.push(Part::borrowed("SQL Query", &config.sql));
             } else {
-                res.push(format!("SQL Queries = [{},..]", config.sql));
+                parts.push(Part::borrowed("SQL Queries", &config.sql));
             }
         }
 
-        res.push(format!(
-            "Clustering spec = {{ {} }}",
-            self.clustering_spec.multiline_display().join(", ")
-        ));
-        res
+        match t {
+            DisplayFormatType::Default => {
+                let tasks = self
+                    .scan_tasks
+                    .iter()
+                    .take(1)
+                    .map(|st| st.clone())
+                    .collect::<Vec<_>>();
+
+                parts.push(Part::owned("Scan Tasks", tasks));
+            }
+            DisplayFormatType::Verbose => {
+                parts.push(Part::borrowed("Scan Tasks", &self.scan_tasks));
+            }
+            _ => {}
+        }
+
+        parts
     }
 }

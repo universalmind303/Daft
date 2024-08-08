@@ -3,6 +3,8 @@ use std::{
     sync::Arc,
 };
 
+use crate::{DisplayFormatType, Displayable};
+
 pub trait TreeDisplay {
     // Required method: Get a list of lines representing this node. No trailing newlines.
     fn get_multiline_representation(&self) -> Vec<String>;
@@ -127,5 +129,124 @@ pub trait TreeDisplay {
             write!(s, "| ")?;
         }
         Ok(())
+    }
+}
+
+pub struct TreeDisplayVisitor<'a, W> {
+    output: &'a mut W,
+    t: DisplayFormatType,
+}
+
+impl<'a, W> TreeDisplayVisitor<'a, W> {
+    pub fn new(w: &'a mut W, t: DisplayFormatType) -> Self {
+        Self { output: w, t }
+    }
+}
+
+impl<'a, W> TreeDisplayVisitor<'a, W>
+where
+    W: fmt::Write,
+{
+    // Print the tree recursively, and illustrate the tree structure with a single line per node + indentation.
+    fn fmt_tree_indent_style<D: Displayable>(&mut self, node: &D, indent: usize) -> fmt::Result {
+        // Print the current node.
+        if indent > 0 {
+            writeln!(self.output)?;
+            write!(self.output, "{:indent$}", "", indent = 2 * indent)?;
+        }
+        let node_str = node.to_multiline_display(self.t)?.join(", ");
+        write!(self.output, "{node_str}")?;
+
+        // Recursively handle children.
+        let children = node.parts(self.t);
+        match &children[..] {
+            // No children - stop printing.
+            [] => Ok(()),
+            // One child.
+            [child] => {
+                // Child tree.
+                self.fmt_tree_indent_style(child, indent + 1)
+            }
+            // Two children.
+            [left, right] => {
+                self.fmt_tree_indent_style(left, indent + 1)?;
+                self.fmt_tree_indent_style(right, indent + 1)
+            }
+            _ => unreachable!("Max two child nodes expected, got {}", children.len()),
+        }
+    }
+
+    fn fmt_tree_gitstyle<D: Displayable + std::fmt::Debug>(
+        &mut self,
+        node: &D,
+        depth: usize,
+    ) -> fmt::Result {
+        let val = node.to_string(self.t);
+        use terminal_size::{terminal_size, Width};
+        let size = terminal_size();
+        let term_width = if let Some((Width(w), _)) = size {
+            w as usize
+        } else {
+            88usize
+        };
+
+        let base_characters = depth * 2;
+        let expected_chars = (term_width - base_characters - 8).max(8);
+        let sublines = textwrap::wrap(&val, expected_chars);
+        let mut counter = 0;
+
+        for (i, sb) in sublines.iter().enumerate() {
+            self.fmt_depth(depth)?;
+            match counter {
+                0 => write!(self.output, "* ")?,
+                _ => write!(self.output, "|   ")?,
+            }
+            counter += 1;
+            match i {
+                0 => writeln!(self.output, "{sb}")?,
+                _ => writeln!(self.output, "  {sb}")?,
+            }
+        }
+        let children = node.parts(self.t);
+        match &children[..] {
+            [] => {}
+            [child] => {
+                self.fmt_depth(depth)?;
+
+                writeln!(self.output, "|")?;
+
+                // Child tree.
+                self.fmt_tree_gitstyle(child, depth)?;
+            }
+            [left, right] => {
+                // Legs: e.g. | | |\
+                self.fmt_depth(depth)?;
+                writeln!(self.output, "|\\")?;
+                self.fmt_tree_gitstyle(right, depth + 1)?;
+
+                // Legs, e.g. | | |
+                self.fmt_depth(depth)?;
+                writeln!(self.output, "|")?;
+
+                // Left child tree.
+                self.fmt_tree_gitstyle(left, depth)?;
+            }
+            _ => unreachable!("Max two child nodes expected, got {}", children.len()),
+        }
+
+        Ok(())
+    }
+    fn fmt_depth(&mut self, depth: usize) -> fmt::Result {
+        // Print leading pipes for forks in ancestors that will be printed later.
+        // e.g. "| | "
+        for _ in 0..depth {
+            write!(self.output, "| ")?;
+        }
+        Ok(())
+    }
+
+    // Print the whole tree represented by this node.
+    pub fn fmt_tree<D: Displayable + std::fmt::Debug>(&mut self, node: &D) -> fmt::Result {
+        self.fmt_tree_gitstyle(node, 0)
     }
 }
