@@ -2978,7 +2978,7 @@ class ExpressionListNamespace(ExpressionNamespace):
         """
         if not (isinstance(size, int) and size > 0):
             raise ValueError(f"Invalid value for `size`: {size}")
-        return Expression._from_pyexpr(self._expr.list_chunk(size))
+        return Expression._from_pyexpr(native.list_chunk(self._expr, size))
 
     def sum(self) -> Expression:
         """Sums each list. Empty lists and lists with all nulls yield null.
