@@ -884,7 +884,7 @@ class Expression:
         return Expression._from_pyexpr(expr)
 
     def _explode(self) -> Expression:
-        expr = self._expr.explode()
+        expr = native.explode(self._expr)
         return Expression._from_pyexpr(expr)
 
     def if_else(self, if_true: Expression, if_false: Expression) -> Expression:
@@ -2919,7 +2919,7 @@ class ExpressionListNamespace(ExpressionNamespace):
             Expression: a String expression which is every element of the list joined on the delimiter
         """
         delimiter_expr = Expression._to_expression(delimiter)
-        return Expression._from_pyexpr(self._expr.list_join(delimiter_expr._expr))
+        return Expression._from_pyexpr(native.list_join(self._expr, delimiter_expr._expr))
 
     def count(self, mode: CountMode = CountMode.Valid) -> Expression:
         """Counts the number of elements in each list

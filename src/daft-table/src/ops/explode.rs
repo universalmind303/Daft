@@ -28,15 +28,12 @@ impl Table {
             )));
         }
 
-        use daft_dsl::functions::{list::ListExpr, FunctionExpr};
-
         let mut evaluated_columns = Vec::with_capacity(exprs.len());
         for expr in exprs {
             match expr.as_ref() {
-                Expr::Function {
-                    func: FunctionExpr::List(ListExpr::Explode),
-                    inputs,
-                } => {
+                Expr::ScalarFunction(func) if func.name() == "explode" => {
+                    let inputs = &func.inputs;
+
                     if inputs.len() != 1 {
                         return Err(DaftError::ValueError(format!("ListExpr::Explode function expression must have one input only, received: {}", inputs.len())));
                     }

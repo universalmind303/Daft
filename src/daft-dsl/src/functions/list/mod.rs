@@ -1,6 +1,5 @@
 mod chunk;
 mod count;
-mod explode;
 mod get;
 mod join;
 mod max;
@@ -12,7 +11,6 @@ mod sum;
 use chunk::ChunkEvaluator;
 use count::CountEvaluator;
 use daft_core::count_mode::CountMode;
-use explode::ExplodeEvaluator;
 use get::GetEvaluator;
 use join::JoinEvaluator;
 use max::MaxEvaluator;
@@ -28,7 +26,6 @@ use super::FunctionEvaluator;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum ListExpr {
-    Explode,
     Join,
     Count(CountMode),
     Get,
@@ -45,7 +42,6 @@ impl ListExpr {
     pub fn get_evaluator(&self) -> &dyn FunctionEvaluator {
         use ListExpr::*;
         match self {
-            Explode => &ExplodeEvaluator {},
             Join => &JoinEvaluator {},
             Count(_) => &CountEvaluator {},
             Get => &GetEvaluator {},
@@ -57,14 +53,6 @@ impl ListExpr {
             Chunk(_) => &ChunkEvaluator {},
         }
     }
-}
-
-pub fn explode(input: ExprRef) -> ExprRef {
-    Expr::Function {
-        func: super::FunctionExpr::List(ListExpr::Explode),
-        inputs: vec![input],
-    }
-    .into()
 }
 
 pub fn join(input: ExprRef, delimiter: ExprRef) -> ExprRef {

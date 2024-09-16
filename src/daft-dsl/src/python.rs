@@ -458,11 +458,6 @@ impl PyExpr {
         Ok(self.expr.clone().agg_concat().into())
     }
 
-    pub fn explode(&self) -> PyResult<Self> {
-        use functions::list::explode;
-        Ok(explode(self.into()).into())
-    }
-
     pub fn __abs__(&self) -> PyResult<Self> {
         use functions::numeric::abs;
         Ok(abs(self.into()).into())
@@ -786,11 +781,6 @@ impl PyExpr {
         };
 
         Ok(normalize(self.into(), opts).into())
-    }
-
-    pub fn list_join(&self, delimiter: &Self) -> PyResult<Self> {
-        use crate::functions::list::join;
-        Ok(join(self.into(), delimiter.into()).into())
     }
 
     pub fn list_count(&self, mode: CountMode) -> PyResult<Self> {
