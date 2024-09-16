@@ -1,4 +1,3 @@
-mod chunk;
 mod count;
 mod get;
 mod max;
@@ -7,7 +6,6 @@ mod min;
 mod slice;
 mod sum;
 
-use chunk::ChunkEvaluator;
 use count::CountEvaluator;
 use daft_core::count_mode::CountMode;
 use get::GetEvaluator;
@@ -31,7 +29,6 @@ pub enum ListExpr {
     Min,
     Max,
     Slice,
-    Chunk(usize),
 }
 
 impl ListExpr {
@@ -46,7 +43,6 @@ impl ListExpr {
             Min => &MinEvaluator {},
             Max => &MaxEvaluator {},
             Slice => &SliceEvaluator {},
-            Chunk(_) => &ChunkEvaluator {},
         }
     }
 }
@@ -103,14 +99,6 @@ pub fn slice(input: ExprRef, start: ExprRef, end: ExprRef) -> ExprRef {
     Expr::Function {
         func: super::FunctionExpr::List(ListExpr::Slice),
         inputs: vec![input, start, end],
-    }
-    .into()
-}
-
-pub fn chunk(input: ExprRef, size: usize) -> ExprRef {
-    Expr::Function {
-        func: super::FunctionExpr::List(ListExpr::Chunk(size)),
-        inputs: vec![input],
     }
     .into()
 }
