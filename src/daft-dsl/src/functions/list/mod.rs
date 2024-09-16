@@ -1,4 +1,3 @@
-mod count;
 mod get;
 mod max;
 mod mean;
@@ -6,8 +5,6 @@ mod min;
 mod slice;
 mod sum;
 
-use count::CountEvaluator;
-use daft_core::count_mode::CountMode;
 use get::GetEvaluator;
 use max::MaxEvaluator;
 use mean::MeanEvaluator;
@@ -22,7 +19,6 @@ use super::FunctionEvaluator;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum ListExpr {
-    Count(CountMode),
     Get,
     Sum,
     Mean,
@@ -36,7 +32,6 @@ impl ListExpr {
     pub fn get_evaluator(&self) -> &dyn FunctionEvaluator {
         use ListExpr::*;
         match self {
-            Count(_) => &CountEvaluator {},
             Get => &GetEvaluator {},
             Sum => &SumEvaluator {},
             Mean => &MeanEvaluator {},
@@ -45,14 +40,6 @@ impl ListExpr {
             Slice => &SliceEvaluator {},
         }
     }
-}
-
-pub fn count(input: ExprRef, mode: CountMode) -> ExprRef {
-    Expr::Function {
-        func: super::FunctionExpr::List(ListExpr::Count(mode)),
-        inputs: vec![input],
-    }
-    .into()
 }
 
 pub fn get(input: ExprRef, idx: ExprRef, default: ExprRef) -> ExprRef {

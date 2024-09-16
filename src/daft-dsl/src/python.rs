@@ -783,11 +783,6 @@ impl PyExpr {
         Ok(normalize(self.into(), opts).into())
     }
 
-    pub fn list_count(&self, mode: CountMode) -> PyResult<Self> {
-        use crate::functions::list::count;
-        Ok(count(self.into(), mode).into())
-    }
-
     pub fn list_get(&self, idx: &Self, default: &Self) -> PyResult<Self> {
         use crate::functions::list::get;
         Ok(get(self.into(), idx.into(), default.into()).into())

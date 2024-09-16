@@ -2912,8 +2912,8 @@ class ExpressionListNamespace(ExpressionNamespace):
     def join(self, delimiter: str | Expression) -> Expression:
         """Joins every element of a list using the specified string delimiter
 
-        Args:
             delimiter (str | Expression): the delimiter to use to join lists with
+        Args:
 
         Returns:
             Expression: a String expression which is every element of the list joined on the delimiter
@@ -2930,7 +2930,7 @@ class ExpressionListNamespace(ExpressionNamespace):
         Returns:
             Expression: a UInt64 expression which is the length of each list
         """
-        return Expression._from_pyexpr(self._expr.list_count(mode))
+        return Expression._from_pyexpr(native.list_count(self._expr, mode))
 
     def lengths(self) -> Expression:
         """Gets the length of each list
@@ -2938,7 +2938,7 @@ class ExpressionListNamespace(ExpressionNamespace):
         Returns:
             Expression: a UInt64 expression which is the length of each list
         """
-        return Expression._from_pyexpr(self._expr.list_count(CountMode.All))
+        return Expression._from_pyexpr(native.list_count(self._expr, CountMode.All))
 
     def get(self, idx: int | Expression, default: object = None) -> Expression:
         """Gets the element at an index in each list
