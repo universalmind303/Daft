@@ -64,11 +64,11 @@ build-release: check-toolchain .venv  ## Compile and install a faster Daft binar
 
 .PHONY: daft-dashboard
 daft-dashboard: check-toolchain .venv  ## Compile and install Daft for development
-	@unset CONDA_PREFIX && PYO3_PYTHON=$(VENV_BIN)/python && cd daft_dashboard && ../$(VENV_BIN)/maturin develop --extras=all --uv
+	@unset CONDA_PREFIX && PYO3_PYTHON=$(VENV_BIN)/python && cd daft-dashboard && ../$(VENV_BIN)/maturin develop --extras=all --uv
 
 .PHONY: daft-dashboard-release
 daft-dashboard-release: check-toolchain .venv  ## Compile and install Daft for development
-	@unset CONDA_PREFIX && PYO3_PYTHON=$(VENV_BIN)/python && cd daft_dashboard && ../$(VENV_BIN)/maturin develop --extras=all --release --uv
+	@unset CONDA_PREFIX && PYO3_PYTHON=$(VENV_BIN)/python && cd daft-dashboard && ../$(VENV_BIN)/maturin develop --extras=all --release --uv
 
 .PHONY: test
 test: .venv build  ## Run tests

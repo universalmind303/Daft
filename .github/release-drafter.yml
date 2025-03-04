@@ -2,71 +2,71 @@ name-template: v$NEXT_PATCH_VERSION
 tag-template: v$NEXT_PATCH_VERSION
 
 categories:
-- title: '💥 Breaking Changes'
+- title: "💥 Breaking Changes"
   labels:
-  - 'breaking change'
-  - 'breaking'
+  - "breaking change"
+  - "breaking"
 
-- title: '✨ Features'
+- title: "✨ Features"
   labels:
-  - 'feat'
-  - 'feature'
-  - 'enhancement'
+  - "feat"
+  - "feature"
+  - "enhancement"
 
-- title: '🐛 Bug Fixes'
+- title: "🐛 Bug Fixes"
   labels:
-  - 'fix'
-  - 'bug'
+  - "fix"
+  - "bug"
 
-- title: '🚀 Performance'
+- title: "🚀 Performance"
   labels:
-  - 'perf'
-  - 'performance'
+  - "perf"
+  - "performance"
 
-- title: '♻️ Refactor'
+- title: "♻️ Refactor"
   labels:
-  - 'refactor'
+  - "refactor"
 
-- title: '📖 Documentation'
+- title: "📖 Documentation"
   labels:
-  - 'docs'
-  - 'documentation'
+  - "docs"
+  - "documentation"
 
-- title: '✅ Tests'
+- title: "✅ Tests"
   labels:
-  - 'test'
-  - 'testing'
+  - "test"
+  - "testing"
 
-- title: '👷 CI'
+- title: "👷 CI"
   labels:
-  - 'ci'
+  - "ci"
 
-- title: '🔧 Maintenance'
+- title: "🔧 Maintenance"
   labels:
-  - 'chore'
+  - "chore"
 
-- title: '⏪ Reverts'
+- title: "⏪ Reverts"
   labels:
-  - 'revert'
+  - "revert"
 
-- title: '⬆️ Dependencies'
+- title: "⬆️ Dependencies"
   collapse-after: 3
   labels:
-  - 'dependencies'
-  - 'deps'
+  - "dependencies"
+  - "deps"
 
 version-resolver:
   major:
     labels:
-    - 'breaking'
+    - "breaking"
   minor:
     labels:
-    - 'feat'
-    - 'feature'
-    - 'enhancement'
+    - "feat"
+    - "feature"
+    - "enhancement"
   default: patch
 
-change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
 change-title-escapes: '\<*_&' # Escapes to prevent mentions and markdown formatting
 
 template: |

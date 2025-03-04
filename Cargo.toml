@@ -119,6 +119,13 @@ inherits = "release"
 lto = 'thin'
 strip = "none"  # dont strip
 
+[profile.release]
+codegen-units = 1  # Slower builds, smaller code
+lto = true  # Enable Link Time Optimization
+opt-level = "z"  # Optimize for size
+panic = "abort"  # Remove panic unwinding code
+strip = true  # Remove debug symbols
+
 [profile.release-lto]
 codegen-units = 1
 inherits = "release"
@@ -178,7 +185,7 @@ members = [
   "src/hyperloglog",
   "src/parquet2",
   "src/generated/spark-connect",
-  "daft_dashboard"
+  "daft-dashboard"
 ]
 
 [workspace.dependencies]
